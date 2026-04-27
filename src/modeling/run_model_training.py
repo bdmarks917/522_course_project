@@ -4,7 +4,7 @@ from pathlib import Path
 from sklearn import model_selection, pipeline, ensemble, neighbors, tree, metrics
 import pandas as pd
 import optuna
-import hyperparameter_tuner as tuner
+from . import hyperparameter_tuner as tuner
 
 # Load processed data
 print(" Loading processed training data...")
