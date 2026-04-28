@@ -31,9 +31,7 @@ The project is structured into four main phases:
 ├── src/                          # Source code modules
 │   ├── preprocessing/            # Data loading and cleaning
 │   ├── feature_selection/        # Feature analysis and selection
-│   ├── modeling/                 # Model training and tuning
-│   └── evaluation/               # Performance metrics
-├── notebooks/                    # Jupyter notebooks for exploration
+│   └── modeling/                 # Model training and tuning
 ├── output/                       # Generated reports and results
 └── documentation/                # Project proposal and specifications
 ```
@@ -53,7 +51,6 @@ Models are trained on consensus-selected features from the feature selection pha
 3. Confirm output at `data/processed/` (All_processed.csv, train.csv, test.csv)
 4. Run feature selection: `python -m src.feature_selection.run_feature_selection`
 5. Train and evaluate models: `python -m src.modeling.run_model_training`
-6. Review results in `output/modeling/` (performance metrics, best hyperparameters)
 
 ## Testing
 

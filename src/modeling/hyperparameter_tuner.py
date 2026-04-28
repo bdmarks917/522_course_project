@@ -30,8 +30,8 @@ class ObjectiveDt:
 	def __call__(self, trial):
 		criterion = trial.suggest_categorical('criterion', ['gini', 'entropy'])
 		ccp_alpha = trial.suggest_float('ccp_alpha', 0.0, 0.1)
-		max_depth = trial.suggest_int('max_depth', 1, 20)
-		if max_depth == 20:
+		max_depth = trial.suggest_int('max_depth', 1, 21)
+		if max_depth == 21:
 			max_depth = None
 
 		classifier = tree.DecisionTreeClassifier(criterion=criterion, ccp_alpha=ccp_alpha, max_depth=max_depth)
