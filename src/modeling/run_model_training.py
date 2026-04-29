@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from sklearn import model_selection, ensemble, neighbors, tree, metrics
+import numpy as np
 import pandas as pd
 import optuna
 import matplotlib.pyplot as plt
@@ -48,8 +49,13 @@ rf_study = optuna.create_study(direction='maximize')
 rf_study.optimize(tuner.ObjectiveRf(X_train, X_val, y_train, y_val), timeout=300, show_progress_bar=True)
 print("Best Random Forest hyperparameters:", rf_study.best_params)
 
+# Tune baseline models using random search for comparison
+knn_n_neighbors, knn_metric, knn_weights = tuner.random_search_knn(X_train, X_val, y_train, y_val)
+dt_criterion, dt_ccp_alpha, dt_max_depth = tuner.random_search_dt(X_train, X_val, y_train, y_val)
+rf_n_estimators, rf_min_samples_leaf, rf_max_depth, rf_max_features, rf_bootstrap = tuner.random_search_rf(X_train, X_val, y_train, y_val)
+
 # Create models with best hyperparameters
-knn_model = neighbors.KNeighborsClassifier(
+knn_model_optuna = neighbors.KNeighborsClassifier(
     n_neighbors=knn_study.best_params['n_neighbors'],
     weights=knn_study.best_params['weights'],
     metric=knn_study.best_params['metric']
@@ -71,11 +77,41 @@ random_forest_model = ensemble.RandomForestClassifier(
     random_state=1234
 )
 
+# Create baseline models with random search hyperparameters
+knn_model_baseline = neighbors.KNeighborsClassifier(
+    n_neighbors=knn_n_neighbors,
+    weights=knn_weights,
+    metric=knn_metric
+)
+
+dt_model_baseline = tree.DecisionTreeClassifier(
+    criterion=dt_criterion,
+    ccp_alpha=dt_ccp_alpha,
+    max_depth=dt_max_depth,
+    random_state=1234
+)
+
+rf_model_baseline = ensemble.RandomForestClassifier(
+    n_estimators=rf_n_estimators,
+    max_depth=rf_max_depth,
+    min_samples_leaf=rf_min_samples_leaf,
+    max_features=rf_max_features,
+    bootstrap=rf_bootstrap,
+    random_state=1234
+)
+
 # Define models
 models = {
-    "K-NN": knn_model,
+    "K-NN": knn_model_optuna,
     "Decision Tree": decision_tree_model,
     "Random Forest": random_forest_model
+}
+
+# Define baseline models
+baseline_models = {
+    "K-NN": knn_model_baseline,
+    "Decision Tree": dt_model_baseline,
+    "Random Forest": rf_model_baseline
 }
 
 # Evaluation
@@ -95,6 +131,28 @@ for name, model in models.items():
     
     # Metrics
     performance_results[name] = {
+        "accuracy": metrics.accuracy_score(y_test, y_test_pred),
+        "precision": metrics.precision_score(y_test, y_test_pred, zero_division=0, average='weighted'),
+        "recall": metrics.recall_score(y_test, y_test_pred, zero_division=0, average='weighted'),
+        "f1": metrics.f1_score(y_test, y_test_pred, zero_division=0, average='weighted'),
+        "roc_auc": metrics.roc_auc_score(y_test, y_test_proba, average='weighted', multi_class='ovr'),
+        "average_precision": metrics.average_precision_score(y_test, y_test_proba, average='weighted')
+    }
+
+baseline_results = {}
+
+for name, model in baseline_models.items():
+    # Train
+    model.fit(X_train, y_train)
+    
+    # Predict
+    y_test_pred = model.predict(X_test)
+
+    # Probabilities (for ROC AUC, etc.)
+    y_test_proba = model.predict_proba(X_test)
+    
+    # Metrics
+    baseline_results[name] = {
         "accuracy": metrics.accuracy_score(y_test, y_test_pred),
         "precision": metrics.precision_score(y_test, y_test_pred, zero_division=0, average='weighted'),
         "recall": metrics.recall_score(y_test, y_test_pred, zero_division=0, average='weighted'),
@@ -133,7 +191,22 @@ for name in models:
 fig, axes = plt.subplots()
 axes.set_title('Model Comparison - F1 Scores')
 axes.set_ylabel('F1 Score')
-bar = axes.bar(performance_df.index, performance_df['f1'])
-axes.bar_label(bar, fmt='{:.3f}')
-plt.ylim(0, 1)
+
+types = ('K-NN', 'Decision Tree', 'Random Forest')
+f1_scores = {
+    'Baseline': (baseline_results['K-NN']['f1'], baseline_results['Decision Tree']['f1'], baseline_results['Random Forest']['f1']),
+    'Optimized': (performance_results['K-NN']['f1'], performance_results['Decision Tree']['f1'], performance_results['Random Forest']['f1'])
+}
+
+x = np.arange(len(types))
+multiplier = 0
+
+for label, score in f1_scores.items():
+    bar = axes.bar(x + 0.4 * multiplier, score, 0.4, label=label)
+    axes.bar_label(bar, padding=3, fmt='{:.3f}')
+    multiplier += 1
+
+axes.set_xticks(x + 0.4, types)
+axes.legend()
+plt.ylim(0, 1.1)
 plt.show()
